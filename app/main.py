@@ -7,6 +7,7 @@ from .utils.aws import S3
 from . import models, crud
 from .database import SessionLocal, engine
 from .utils.utils import is_valid_csv, required_csv_columns
+from .tasks import process_csv
 
 load_dotenv()
 
@@ -51,6 +52,7 @@ async def upload_csv(file: UploadFile | None = None, db: Session = Depends(get_d
     try:
         s3.upload_file(file.file, file_name)
         request = crud.create_request(db, request_id)
+        process_csv.delay(file_name, request_id)  # Background worker
         return {"detail": "File uploaded, getting processed", "request_id": request.id}
     except Exception as e:
         raise HTTPException(
