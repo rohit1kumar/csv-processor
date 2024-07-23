@@ -1,7 +1,9 @@
+import uuid
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, HTTPException, status, UploadFile, Depends
 
+from .utils.aws import S3
 from . import models, crud
 from .database import SessionLocal, engine
 from .utils.utils import is_valid_csv, required_csv_columns
@@ -41,9 +43,14 @@ async def upload_csv(file: UploadFile | None = None, db: Session = Depends(get_d
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid CSV file, must have columns: {required_csv_columns}",
         )
+
+    s3 = S3()
+    request_id = uuid.uuid4()
+    file_name = f"csv/original/{request_id}.csv"
+
     try:
-        # upload to s3
-        request = crud.create_request(db)
+        s3.upload_file(file.file, file_name)
+        request = crud.create_request(db, request_id)
         return {"detail": "File uploaded, getting processed", "request_id": request.id}
     except Exception as e:
         raise HTTPException(
