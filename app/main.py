@@ -57,3 +57,22 @@ async def upload_csv(file: UploadFile | None = None, db: Session = Depends(get_d
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
         ) from e
+
+
+@app.get("/api/status/{request_id}", status_code=status.HTTP_200_OK)
+async def get_status(request_id: uuid.UUID, db: Session = Depends(get_db)):
+    """Get the status of a request"""
+    try:
+        request = crud.get_request(db, request_id)
+        if not request:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Request not found",
+            )
+        return request
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
+        ) from e
