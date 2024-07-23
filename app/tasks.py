@@ -1,13 +1,15 @@
 import os
 import csv
 import uuid
-from io import StringIO
+import requests
 from celery import Celery
 from dotenv import load_dotenv
+from io import StringIO, BytesIO
+from PIL import Image as PILImage
 
-from .database import SessionLocal
-from .models import Request, Product, StatusEnums
 from .utils.aws import S3
+from .database import SessionLocal
+from .models import Request, Product, Image, StatusEnums
 
 load_dotenv()
 
@@ -57,6 +59,34 @@ def process_csv(file_name: str, request_id: uuid.UUID):
 
                 product_id = db_product.id
                 print(f"Created product : {product_id}")
+                for url in input_image_urls.split(","):
+                    try:
+                        response = requests.get(url)
+                        with PILImage.open(BytesIO(response.content)) as pil_image:
+                            buffer = BytesIO()
+                            format = pil_image.format
+                            pil_image.save(
+                                buffer, format=format, quality=44, optimize=True
+                            )
+
+                            buffer.seek(0)
+
+                            image_id = uuid.uuid4()
+                            image_data = {
+                                "id": image_id,
+                                "input_url": url,
+                                "product_id": product_id,
+                            }
+                            image_name = f"images/compressed/{image_id}.jpg"
+                            s3.upload_file(buffer, image_name)
+                            image_data["output_url"] = s3.get_file_url(image_name)
+                            db_image = Image(**image_data)
+                            db.add(db_image)
+                            db.commit()
+                            db.refresh(db_image)
+                    except Exception as e:
+                        print("Error processing image", e)
+                        continue
 
             db_request.status = StatusEnums.COMPLETED
             db.commit()
