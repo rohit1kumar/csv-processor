@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from .utils.aws import S3
 from . import crud
 from .database import SessionLocal
-from .utils.utils import is_valid_csv, required_csv_columns
+from .utils.csv_validator import is_valid_csv, required_csv_columns
 from .tasks import process_csv
 
 router = APIRouter()
@@ -36,7 +36,7 @@ async def upload_csv(file: UploadFile | None = None, db: Session = Depends(get_d
     if not is_valid_csv(file):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid CSV file, must have columns: {required_csv_columns}",
+            detail=f"Invalid CSV file, must have these columns: {', '.join(required_csv_columns)}",
         )
 
     s3 = S3()

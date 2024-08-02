@@ -1,19 +1,16 @@
 import os
-import csv
 import uuid
-import requests
 from celery import Celery
 from dotenv import load_dotenv
-from io import StringIO, BytesIO
-from PIL import Image as PILImage
 
 from .utils.aws import S3
+from .utils.image_processing import compress_image, get_csv_data
 from .database import SessionLocal
 from .models import Request, Product, Image, StatusEnums
 
 load_dotenv()
 
-BROKER_URL = os.getenv("CELERY_BROKER_URL", "amqp://guest:guest@localhost:5672/")
+BROKER_URL = os.getenv("CELERY_BROKER_URL", "amqp://guest:guest@localhost:5672/vhost")
 
 celery_app = Celery(__name__, broker=BROKER_URL)
 
@@ -41,11 +38,8 @@ def process_csv(file_name: str, request_id: uuid.UUID):
             db.commit()
 
             file = s3.download_file(file_name)
-            data = file["Body"].read().decode("utf-8")
-            reader = csv.reader(StringIO(data))
-            next(reader)  # Skip header
 
-            for row in reader:
+            for row in get_csv_data(file):
                 serial_number, product_name, input_image_urls = row
                 product_data = {
                     "serial_number": serial_number,
@@ -61,29 +55,21 @@ def process_csv(file_name: str, request_id: uuid.UUID):
                 print(f"Created product : {product_id}")
                 for url in input_image_urls.split(","):
                     try:
-                        response = requests.get(url)
-                        with PILImage.open(BytesIO(response.content)) as pil_image:
-                            buffer = BytesIO()
-                            format = pil_image.format
-                            pil_image.save(
-                                buffer, format=format, quality=44, optimize=True
-                            )
+                        image_buffer = compress_image(url)
+                        image_id = uuid.uuid4()
+                        image_name = f"images/compressed/{image_id}.jpg"
+                        s3.upload_file(image_buffer, image_name)
 
-                            buffer.seek(0)
-
-                            image_id = uuid.uuid4()
-                            image_data = {
-                                "id": image_id,
-                                "input_url": url,
-                                "product_id": product_id,
-                            }
-                            image_name = f"images/compressed/{image_id}.jpg"
-                            s3.upload_file(buffer, image_name)
-                            image_data["output_url"] = s3.get_file_url(image_name)
-                            db_image = Image(**image_data)
-                            db.add(db_image)
-                            db.commit()
-                            db.refresh(db_image)
+                        image_data = {
+                            "id": image_id,
+                            "input_url": url,
+                            "product_id": product_id,
+                            "output_url": s3.get_file_url(image_name),
+                        }
+                        db_image = Image(**image_data)
+                        db.add(db_image)
+                        db.commit()
+                        db.refresh(db_image)
                     except Exception as e:
                         print("Error processing image", e)
                         continue
