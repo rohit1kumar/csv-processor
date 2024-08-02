@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 from .utils.aws import S3
 from .utils.image_processing import compress_image, get_csv_data
+from .utils.webhook import trigger_webhook
 from .database import SessionLocal
 from .models import Request, Product, Image, StatusEnums
 
@@ -22,7 +23,7 @@ celery_app.conf.update(
 
 
 @celery_app.task(name="process_csv")
-def process_csv(file_name: str, request_id: uuid.UUID):
+def process_csv_and_trigger_webhook(file_name: str, request_id: uuid.UUID):
     """Process the CSV file and create products in db & store compressed images in S3"""
 
     s3 = S3()
@@ -77,6 +78,9 @@ def process_csv(file_name: str, request_id: uuid.UUID):
             db_request.status = StatusEnums.COMPLETED
             db.commit()
             print(f"Processing completed for request: {request_id}")
+
+            if db_request.webhook_url is not None:
+                trigger_webhook(db_request.webhook_url, request_id)
 
         except Exception as e:
             db_request.status = StatusEnums.ERROR

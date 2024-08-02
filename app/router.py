@@ -1,11 +1,11 @@
 import uuid
-from fastapi import APIRouter, HTTPException, status, UploadFile, Depends
+from fastapi import APIRouter, HTTPException, status, UploadFile, Depends, Form
 from sqlalchemy.orm import Session
 from .utils.aws import S3
 from . import crud
 from .database import SessionLocal
 from .utils.csv_validator import is_valid_csv, required_csv_columns
-from .tasks import process_csv
+from .tasks import process_csv_and_trigger_webhook
 
 router = APIRouter()
 
@@ -20,7 +20,11 @@ def get_db():
 
 
 @router.post("/upload", status_code=status.HTTP_202_ACCEPTED)
-async def upload_csv(file: UploadFile | None = None, db: Session = Depends(get_db)):
+async def upload_csv(
+    webhook_url: str = Form(...),
+    file: UploadFile = Form(...),
+    db: Session = Depends(get_db),
+):
     """Upload a CSV file, validate it, create a request in db then process it using celery worker"""
     if not file:
         raise HTTPException(
@@ -45,8 +49,10 @@ async def upload_csv(file: UploadFile | None = None, db: Session = Depends(get_d
 
     try:
         s3.upload_file(file.file, file_name)
-        request = crud.create_request(db, request_id)
-        process_csv.delay(file_name, request_id)  # Background worker
+        request = crud.create_request(db, request_id, webhook_url)
+        process_csv_and_trigger_webhook.delay(
+            file_name, request_id
+        )  # Background worker
         return {"detail": "File uploaded, getting processed", "request_id": request.id}
     except Exception as e:
         raise HTTPException(
