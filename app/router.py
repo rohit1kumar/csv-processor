@@ -1,6 +1,7 @@
 import uuid
 from fastapi import APIRouter, HTTPException, status, UploadFile, Depends, Form
 from sqlalchemy.orm import Session
+from typing import Optional
 from .utils.aws import S3
 from . import crud
 from .database import SessionLocal
@@ -21,8 +22,8 @@ def get_db():
 
 @router.post("/upload", status_code=status.HTTP_202_ACCEPTED)
 async def upload_csv(
-    webhook_url: str = Form(...),
-    file: UploadFile = Form(...),
+    webhook_url: Optional[str] = Form(None),
+    file: UploadFile | None = None,
     db: Session = Depends(get_db),
 ):
     """Upload a CSV file, validate it, create a request in db then process it using celery worker"""
