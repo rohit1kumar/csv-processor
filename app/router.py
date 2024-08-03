@@ -21,7 +21,7 @@ def get_db():
 
 
 @router.post("/upload", status_code=status.HTTP_202_ACCEPTED)
-async def upload_csv(
+def upload_csv(
     webhook_url: Optional[str] = Form(None),
     file: UploadFile | None = None,
     db: Session = Depends(get_db),
@@ -63,7 +63,7 @@ async def upload_csv(
 
 
 @router.get("/status/{request_id}", status_code=status.HTTP_200_OK)
-async def get_status(request_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_status(request_id: uuid.UUID, db: Session = Depends(get_db)):
     """Get the status of a request"""
     try:
         request = crud.get_request(db, request_id)
