@@ -15,7 +15,7 @@ Celery worker processes the CSV, compresses images, uploads to S3, updates the d
 Clients can check status using the request ID.
 
 
-## API Endpoints (Visit `/docs`)
+## API Endpoints (Visit [/docs](https://image-cruncher.onrender.com/docs))
 
 `POST /api/v1/upload`: Upload CSV file + webhook URL (optional)
 
