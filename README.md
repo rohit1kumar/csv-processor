@@ -1,5 +1,5 @@
 # Image Cruncher
-A image processing service, processes CSV files containing product data and images, compresses the images, and stores the results.
+An image processing service, processes CSV files containing product data and images, compresses the images, and stores the results.
 
 ## Components
 - FastAPI: Web server for handling API requests
