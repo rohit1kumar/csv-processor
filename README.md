@@ -1,5 +1,5 @@
-# Image Processing Service
-Processes CSV files containing product data and images, compresses the images, and stores the results.
+# Image Cruncher
+A image processing service, processes CSV files containing product data and images, compresses the images, and stores the results.
 
 ## Components
 - FastAPI: Web server for handling API requests
@@ -37,11 +37,8 @@ Celery worker handles:
 5. Webhook notifications
 
 ## How to Run
-1. Get the code: `git clone https://github.com/rohit1kumar/csv-processor.git`
+1. Get the code: `git clone https://github.com/rohit1kumar/image-cruncher.git`
 2. Install dependencies using poetry: `poetry install`
 3. Add environment variables to `.env` file (see `.env.example`)
 4. Run the FastAPI server: `./scripts/start_server.sh` *(dont forget to make the script executable)*
 5. Run the Celery worker: `./scripts/start_celery.sh`
-
-
-
